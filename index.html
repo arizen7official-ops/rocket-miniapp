@@ -327,7 +327,7 @@ collectBtn.addEventListener('click', ()=>{
     earned = 0;
     updateUI();
     showBottom('Монеты собраны', 900);
-    sendBalanceToBot();   // <--- ВАЖНО!
+    sendBalanceToServer();   // <--- ВАЖНО!
   }
 });
 
@@ -369,7 +369,7 @@ sendReq.addEventListener('click', ()=>{
 
   // success
   balance = +(balance - coins).toFixed(2);
-  sendBalanceToBot();
+  sendBalanceToServer();
   history.unshift({coins, addr, time: new Date().toLocaleString()});
   historyList.innerHTML = history.map(h=>`<div class='history-item'>${h.time}<br>Монет: ${h.coins}<br>Адрес: ${h.addr}</div>`).join('');
   showMsg(msgOK, 'Заявка успешно отправлена', 1800);
@@ -378,20 +378,68 @@ sendReq.addEventListener('click', ()=>{
   updateUI();
 });
 
+let tg = window.Telegram.WebApp;
+tg.expand();
+
+// получаем Telegram user ID
+let user = tg.initDataUnsafe?.user;
+let user_id = user?.id;
+
+console.log("Telegram user:", user_id);
+
+// загружаем баланс с сервера
+fetch("https://ТВОЙ_СЕРВЕР/get_balance?user_id=" + user_id)
+  .then(r => r.json())
+  .then(d => {
+    balance = +d.balance;
+    updateUI();
+  });
+
+// отправляем баланс на сервер
+function sendBalanceToServer(){
+  fetch("https://ТВОЙ_СЕРВЕР/save_balance", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      user_id: user_id,
+      balance: balance
+    })
+  });
+}
+ 
+  
 updateUI();
 requestAnimationFrame(tick);
 
 
 let tg = window.Telegram.WebApp;
+let user = tg.initDataUnsafe?.user;
+let user_id = user?.id;
+
+console.log("User ID:", user_id);
+  
+// попросим баланс у бота
+fetch("https://ТВОЙ_СЕРВЕР/get_balance?user_id=" + user_id)
+  .then(r => r.json())
+  .then(d => {
+       balance = +d.balance;
+       updateUI();
+  })
+  .catch(e => console.log("Ошибка:", e));
+
 tg.expand();
 
-function sendBalanceToBot(){
-    if (!tg) return;
-    tg.sendData(JSON.stringify({
-        event: "update_balance",
-        balance: balance
-    }));
+function sendBalanceToServer(){
+    fetch("https://ТВОЙ_СЕРВЕР/save_balance", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            user_id: user_id,
+            balance: balance
+        })
+    });
 }
+
 
 Telegram.WebApp.onEvent('data', function(raw){
     try {
