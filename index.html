@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -326,8 +327,10 @@ collectBtn.addEventListener('click', ()=>{
     earned = 0;
     updateUI();
     showBottom('Монеты собраны', 900);
+    sendBalanceToBot();   // <--- ВАЖНО!
   }
 });
+
 
 // ----------------- Withdraw modal -----------------
 openWithdraw.addEventListener('click', ()=> { withdrawScreen.style.display = 'flex'; });
@@ -366,6 +369,7 @@ sendReq.addEventListener('click', ()=>{
 
   // success
   balance = +(balance - coins).toFixed(2);
+  sendBalanceToBot();
   history.unshift({coins, addr, time: new Date().toLocaleString()});
   historyList.innerHTML = history.map(h=>`<div class='history-item'>${h.time}<br>Монет: ${h.coins}<br>Адрес: ${h.addr}</div>`).join('');
   showMsg(msgOK, 'Заявка успешно отправлена', 1800);
@@ -376,6 +380,32 @@ sendReq.addEventListener('click', ()=>{
 
 updateUI();
 requestAnimationFrame(tick);
+
+
+let tg = window.Telegram.WebApp;
+tg.expand();
+
+function sendBalanceToBot(){
+    if (!tg) return;
+    tg.sendData(JSON.stringify({
+        event: "update_balance",
+        balance: balance
+    }));
+}
+
+Telegram.WebApp.onEvent('data', function(raw){
+    try {
+        const data = JSON.parse(raw);
+        if (data.balance !== undefined) {
+            balance = +data.balance;
+            updateUI();
+        }
+    } catch(e){
+        console.log("Ошибка чтения данных:", e);
+    }
+});
+</script>
+
 </script>
 </body>
 </html>
